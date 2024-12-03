@@ -33,6 +33,8 @@ def get_cached_depth_map(image_array, cache_dir=CACHE_DIR):
     """获取缓存的深度图,如果不存在则返回None"""
     image_hash = get_image_hash(image_array)
     cache_path = cache_dir / f"{image_hash}.png"
+    if not cache_dir.exists():
+        Path(cache_dir).mkdir(parents=True, exist_ok=True)
 
     if cache_path.exists():
         logger.info(f"Using cached depth map: {cache_path}")
@@ -156,6 +158,9 @@ def apply_combined_effects(
     if texture_image is None or background_image is None or mask_image is None:
         return None
 
+    output_dir = Path("output")
+    output_dir.mkdir(parents=True, exist_ok=True)
+
     # 初始化临时文件路径变量
     texture_path = None
     background_path = None
@@ -199,7 +204,7 @@ def apply_combined_effects(
                         texture,
                         background.width,
                         background.height,
-                        scale_factor=texture_scale
+                        scale_factor=texture_scale,
                     )
                     # 保存平铺后的纹理
                     tiled_path = uuid.uuid4().hex + ".png"
@@ -220,7 +225,7 @@ def apply_combined_effects(
             return None
 
         # 保存位移后的纹理
-        displaced_path = "debug_displaced_" + uuid.uuid4().hex + ".png"
+        displaced_path = output_dir / "debug_displaced_" + uuid.uuid4().hex + ".png"
         displaced_texture.save(filename=displaced_path)
 
         # 在合成之前生成光照图
@@ -253,7 +258,7 @@ def apply_combined_effects(
                     )
 
         # 保存最终结果
-        output_path = "debug_final_" + uuid.uuid4().hex + ".png"
+        output_path = output_dir / "debug_final_" + uuid.uuid4().hex + ".png"
         final_result.save(filename=output_path)
         return output_path
 
@@ -350,11 +355,7 @@ with gr.Blocks() as demo:
             background_image = gr.Image(label="背景图")
             mask_image = gr.Image(label="遮罩图")
             texture_scale = gr.Slider(  # 添加纹理缩放滑块
-                minimum=0.01,
-                maximum=5.0,
-                value=1.0,
-                step=0.01,
-                label="纹理缩放系数"
+                minimum=0.01, maximum=5.0, value=1.0, step=0.01, label="纹理缩放系数"
             )
 
         with gr.Row():
@@ -555,19 +556,62 @@ with gr.Blocks() as demo:
 
         # 生成两组结果
         def generate_comparison(
-            texture, background, mask, texture_scale,  # 添加纹理缩放参数
-            tile_a, strength_a, blur_a, light_a, black_a, white_a, gamma_a, contrast_a, lightness_a, detail_strength_a,
-            tile_b, strength_b, blur_b, light_b, black_b, white_b, gamma_b, contrast_b, lightness_b, detail_strength_b,
+            texture,
+            background,
+            mask,
+            texture_scale,  # 添加纹理缩放参数
+            tile_a,
+            strength_a,
+            blur_a,
+            light_a,
+            black_a,
+            white_a,
+            gamma_a,
+            contrast_a,
+            lightness_a,
+            detail_strength_a,
+            tile_b,
+            strength_b,
+            blur_b,
+            light_b,
+            black_b,
+            white_b,
+            gamma_b,
+            contrast_b,
+            lightness_b,
+            detail_strength_b,
         ):
             result_a = apply_combined_effects(
-                texture, background, mask,
+                texture,
+                background,
+                mask,
                 texture_scale,  # 传入缩放系数
-                tile_a, strength_a, blur_a, light_a, black_a, white_a, gamma_a, contrast_a, lightness_a, detail_strength_a
+                tile_a,
+                strength_a,
+                blur_a,
+                light_a,
+                black_a,
+                white_a,
+                gamma_a,
+                contrast_a,
+                lightness_a,
+                detail_strength_a,
             )
             result_b = apply_combined_effects(
-                texture, background, mask,
+                texture,
+                background,
+                mask,
                 texture_scale,  # 传入缩放系数
-                tile_b, strength_b, blur_b, light_b, black_b, white_b, gamma_b, contrast_b, lightness_b, detail_strength_b
+                tile_b,
+                strength_b,
+                blur_b,
+                light_b,
+                black_b,
+                white_b,
+                gamma_b,
+                contrast_b,
+                lightness_b,
+                detail_strength_b,
             )
             return result_a, result_b
 
@@ -575,13 +619,32 @@ with gr.Blocks() as demo:
         generate_both.click(
             fn=generate_comparison,
             inputs=[
-                texture_image, background_image, mask_image, texture_scale,  # 添加纹理缩放参数
-                tile_texture_a, strength_a, blur_radius_a, lighting_strength_a,
-                black_point_a, white_point_a, gamma_a, contrast_a, lightness_a, detail_strength_a,
-                tile_texture_b, strength_b, blur_radius_b, lighting_strength_b,
-                black_point_b, white_point_b, gamma_b, contrast_b, lightness_b, detail_strength_b
+                texture_image,
+                background_image,
+                mask_image,
+                texture_scale,  # 添加纹理缩放参数
+                tile_texture_a,
+                strength_a,
+                blur_radius_a,
+                lighting_strength_a,
+                black_point_a,
+                white_point_a,
+                gamma_a,
+                contrast_a,
+                lightness_a,
+                detail_strength_a,
+                tile_texture_b,
+                strength_b,
+                blur_radius_b,
+                lighting_strength_b,
+                black_point_b,
+                white_point_b,
+                gamma_b,
+                contrast_b,
+                lightness_b,
+                detail_strength_b,
             ],
-            outputs=[output_image_a, output_image_b]
+            outputs=[output_image_a, output_image_b],
         )
 
 
