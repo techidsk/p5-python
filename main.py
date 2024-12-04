@@ -160,6 +160,7 @@ def apply_combined_effects(
 
     output_dir = Path("output")
     output_dir.mkdir(parents=True, exist_ok=True)
+    output_dir = output_dir.as_posix()
 
     # 初始化临时文件路径变量
     texture_path = None
@@ -225,7 +226,7 @@ def apply_combined_effects(
             return None
 
         # 保存位移后的纹理
-        displaced_path = output_dir / "debug_displaced_" + uuid.uuid4().hex + ".png"
+        displaced_path = output_dir + "/debug_displaced_" + uuid.uuid4().hex + ".png"
         displaced_texture.save(filename=displaced_path)
 
         # 在合成之前生成光照图
@@ -258,7 +259,7 @@ def apply_combined_effects(
                     )
 
         # 保存最终结果
-        output_path = output_dir / "debug_final_" + uuid.uuid4().hex + ".png"
+        output_path = output_dir + "/debug_final_" + uuid.uuid4().hex + ".png"
         final_result.save(filename=output_path)
         return output_path
 
@@ -349,25 +350,29 @@ with gr.Blocks() as demo:
         )
 
     with gr.Tab("组合效果"):
-        # 共用的图片输入区域
+        # 共享参数区域
+        gr.Markdown("### 共享参数")
         with gr.Row():
             texture_image = gr.Image(label="纹理图")
             background_image = gr.Image(label="背景图")
             mask_image = gr.Image(label="遮罩图")
-            texture_scale = gr.Slider(  # 添加纹理缩放滑块
+
+        # 平铺相关的共享设置
+        with gr.Row():
+            tile_texture = gr.Checkbox(label="平铺纹理", value=True)
+            texture_scale = gr.Slider(
                 minimum=0.01, maximum=5.0, value=1.0, step=0.01, label="纹理缩放系数"
             )
 
+        gr.Markdown("### 独立参数")
         with gr.Row():
             # 左侧参数组
             with gr.Column():
-                gr.Markdown("### 参数组 A")
+                gr.Markdown("#### 参数组 A")
                 with gr.Row():
-                    tile_texture_a = gr.Checkbox(label="平铺纹理", value=True)
                     strength_a = gr.Slider(
                         minimum=0, maximum=100, value=20, step=1, label="深度置换强度"
                     )
-
                 with gr.Row():
                     blur_radius_a = gr.Slider(
                         minimum=0, maximum=20, value=5, step=1, label="深度图模糊值"
@@ -375,7 +380,6 @@ with gr.Blocks() as demo:
                     lighting_strength_a = gr.Slider(
                         minimum=0, maximum=1, value=0.5, step=0.1, label="光照强度"
                     )
-
                 with gr.Row():
                     black_point_a = gr.Slider(
                         minimum=0, maximum=100, value=0, step=1, label="黑场值"
@@ -392,23 +396,19 @@ with gr.Blocks() as demo:
                     lightness_a = gr.Slider(
                         minimum=-100, maximum=100, value=0, step=1, label="明度"
                     )
-
                 with gr.Row():
                     detail_strength_a = gr.Slider(
                         minimum=0, maximum=1, value=0.5, step=0.1, label="细节保留强度"
                     )
-
                 output_image_a = gr.Image(label="结果 A")
 
             # 右侧参数组
             with gr.Column():
-                gr.Markdown("### 参数组 B")
+                gr.Markdown("#### 参数组 B")
                 with gr.Row():
-                    tile_texture_b = gr.Checkbox(label="平铺纹理", value=True)
                     strength_b = gr.Slider(
                         minimum=0, maximum=100, value=20, step=1, label="深度置换强度"
                     )
-
                 with gr.Row():
                     blur_radius_b = gr.Slider(
                         minimum=0, maximum=20, value=5, step=1, label="深度图模糊值"
@@ -416,7 +416,6 @@ with gr.Blocks() as demo:
                     lighting_strength_b = gr.Slider(
                         minimum=0, maximum=1, value=0.5, step=0.1, label="光照强度"
                     )
-
                 with gr.Row():
                     black_point_b = gr.Slider(
                         minimum=0, maximum=100, value=0, step=1, label="黑场值"
@@ -440,68 +439,87 @@ with gr.Blocks() as demo:
                 output_image_b = gr.Image(label="结果 B")
 
         with gr.Row():
-            # 复制参数按钮
+            # 复制��数按钮
             copy_a_to_b = gr.Button("复制 A 到 B")
             copy_b_to_a = gr.Button("复制 B 到 A")
             # 生成结果按钮
             generate_both = gr.Button("生成对比结果", variant="primary")
 
-        # 添加复制参数的功能
-        def copy_params_a_to_b(
-            tile_a,
+        # 定义参数复制函数
+        def copy_params_a_to_b(*params_a):
+            return params_a
+
+        def copy_params_b_to_a(*params_b):
+            return params_b
+
+        # 定义生成对比结果函数
+        def generate_comparison(
+            texture,
+            background,
+            mask,
+            texture_scale,
+            tile_texture,
             strength_a,
-            blur_a,
-            light_a,
-            black_a,
-            white_a,
+            blur_radius_a,
+            lighting_strength_a,
+            black_point_a,
+            white_point_a,
             gamma_a,
             contrast_a,
             lightness_a,
             detail_strength_a,
-        ):
-            return (
-                tile_a,
-                strength_a,
-                blur_a,
-                light_a,
-                black_a,
-                white_a,
-                gamma_a,
-                contrast_a,
-                lightness_a,
-                detail_strength_a,
-            )
-
-        def copy_params_b_to_a(
-            tile_b,
             strength_b,
-            blur_b,
-            light_b,
-            black_b,
-            white_b,
+            blur_radius_b,
+            lighting_strength_b,
+            black_point_b,
+            white_point_b,
             gamma_b,
             contrast_b,
             lightness_b,
             detail_strength_b,
         ):
-            return (
-                tile_b,
+            # 生成A结果
+            result_a = apply_combined_effects(
+                texture,
+                background,
+                mask,
+                texture_scale,
+                tile_texture,
+                strength_a,
+                blur_radius_a,
+                lighting_strength_a,
+                black_point_a,
+                white_point_a,
+                gamma_a,
+                contrast_a,
+                lightness_a,
+                detail_strength_a,
+            )
+            
+            # 生成B结果
+            result_b = apply_combined_effects(
+                texture,
+                background,
+                mask,
+                texture_scale,
+                tile_texture,
                 strength_b,
-                blur_b,
-                light_b,
-                black_b,
-                white_b,
+                blur_radius_b,
+                lighting_strength_b,
+                black_point_b,
+                white_point_b,
                 gamma_b,
                 contrast_b,
                 lightness_b,
                 detail_strength_b,
             )
+            
+            return result_a, result_b
 
-        # 设置复制按钮的事件处理
+        # 设置按钮点击事件
         copy_a_to_b.click(
             fn=copy_params_a_to_b,
             inputs=[
-                tile_texture_a,
                 strength_a,
                 blur_radius_a,
                 lighting_strength_a,
@@ -513,7 +531,6 @@ with gr.Blocks() as demo:
                 detail_strength_a,
             ],
             outputs=[
-                tile_texture_b,
                 strength_b,
                 blur_radius_b,
                 lighting_strength_b,
@@ -529,7 +546,6 @@ with gr.Blocks() as demo:
         copy_b_to_a.click(
             fn=copy_params_b_to_a,
             inputs=[
-                tile_texture_b,
                 strength_b,
                 blur_radius_b,
                 lighting_strength_b,
@@ -541,7 +557,6 @@ with gr.Blocks() as demo:
                 detail_strength_b,
             ],
             outputs=[
-                tile_texture_a,
                 strength_a,
                 blur_radius_a,
                 lighting_strength_a,
@@ -554,76 +569,14 @@ with gr.Blocks() as demo:
             ],
         )
 
-        # 生成两组结果
-        def generate_comparison(
-            texture,
-            background,
-            mask,
-            texture_scale,  # 添加纹理缩放参数
-            tile_a,
-            strength_a,
-            blur_a,
-            light_a,
-            black_a,
-            white_a,
-            gamma_a,
-            contrast_a,
-            lightness_a,
-            detail_strength_a,
-            tile_b,
-            strength_b,
-            blur_b,
-            light_b,
-            black_b,
-            white_b,
-            gamma_b,
-            contrast_b,
-            lightness_b,
-            detail_strength_b,
-        ):
-            result_a = apply_combined_effects(
-                texture,
-                background,
-                mask,
-                texture_scale,  # 传入缩放系数
-                tile_a,
-                strength_a,
-                blur_a,
-                light_a,
-                black_a,
-                white_a,
-                gamma_a,
-                contrast_a,
-                lightness_a,
-                detail_strength_a,
-            )
-            result_b = apply_combined_effects(
-                texture,
-                background,
-                mask,
-                texture_scale,  # 传入缩放系数
-                tile_b,
-                strength_b,
-                blur_b,
-                light_b,
-                black_b,
-                white_b,
-                gamma_b,
-                contrast_b,
-                lightness_b,
-                detail_strength_b,
-            )
-            return result_a, result_b
-
-        # 更新生成按钮的事件处理
         generate_both.click(
             fn=generate_comparison,
             inputs=[
                 texture_image,
                 background_image,
                 mask_image,
-                texture_scale,  # 添加纹理缩放参数
-                tile_texture_a,
+                texture_scale,
+                tile_texture,
                 strength_a,
                 blur_radius_a,
                 lighting_strength_a,
@@ -633,7 +586,6 @@ with gr.Blocks() as demo:
                 contrast_a,
                 lightness_a,
                 detail_strength_a,
-                tile_texture_b,
                 strength_b,
                 blur_radius_b,
                 lighting_strength_b,
