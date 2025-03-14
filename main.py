@@ -3,6 +3,7 @@ import tempfile
 import uuid
 import traceback
 import hashlib
+import numpy as np
 from pathlib import Path
 
 import gradio as gr
@@ -225,7 +226,7 @@ def apply_combined_effects(
         if displaced_texture is None:
             return None
 
-        # 保存位移后的纹理
+        # 保存位移后纹理
         displaced_path = output_dir + "/debug_displaced_" + uuid.uuid4().hex + ".png"
         displaced_texture.save(filename=displaced_path)
 
@@ -309,51 +310,55 @@ def apply_combined_effects(
 with gr.Blocks() as demo:
     gr.Markdown("# 图像处理演示")
 
-    with gr.Tab("深度估计"):
-        with gr.Row():
-            input_image1 = gr.Image(label="上传图片")
-            output_image1 = gr.Image(label="处理结果")
+    # with gr.Tab("深度估计"):
+    #     with gr.Row():
+    #         input_image1 = gr.Image(label="上传图片")
+    #         output_image1 = gr.Image(label="处理结果")
 
-        process_btn = gr.Button("生成深度图")
-        process_btn.click(fn=process_image, inputs=input_image1, outputs=output_image1)
+    #     process_btn = gr.Button("生成深度图")
+    #     process_btn.click(fn=process_image, inputs=input_image1, outputs=output_image1)
 
-    with gr.Tab("深度置换"):
-        with gr.Row():
-            input_image2 = gr.Image(label="原始图片")
-            depth_image = gr.Image(label="深度图")
-            output_image2 = gr.Image(label="处理结果")
+    # with gr.Tab("深度置换"):
+    #     with gr.Row():
+    #         input_image2 = gr.Image(label="原始图片")
+    #         depth_image = gr.Image(label="深度图")
+    #         output_image2 = gr.Image(label="处理结果")
 
-        strength = gr.Slider(minimum=0, maximum=50, value=20, step=1, label="变形度")
+    #     strength = gr.Slider(minimum=0, maximum=50, value=20, step=1, label="变形度")
 
-        displace_btn = gr.Button("应用深度置换")
-        displace_btn.click(
-            fn=apply_displacement,
-            inputs=[input_image2, depth_image, strength],
-            outputs=output_image2,
-        )
+    #     displace_btn = gr.Button("应用深度置换")
+    #     displace_btn.click(
+    #         fn=apply_displacement,
+    #         inputs=[input_image2, depth_image, strength],
+    #         outputs=output_image2,
+    #     )
 
-    with gr.Tab("图片合成"):
-        with gr.Row():
-            texture_image = gr.Image(label="纹理图")
-            background_image = gr.Image(label="背景图")
-            mask_image = gr.Image(label="遮罩图")
+    # with gr.Tab("图片合成"):
+    #     with gr.Row():
+    #         texture_image = gr.Image(label="纹理图")
+    #         background_image = gr.Image(label="背景图")
+    #         mask_image = gr.Image(label="遮罩图")
 
-        with gr.Row():
-            output_image3 = gr.Image(label="合成结果")
-            tile_texture = gr.Checkbox(label="平铺纹理", value=False)
+    #     with gr.Row():
+    #         output_image3 = gr.Image(label="合成结果")
+    #         tile_texture = gr.Checkbox(label="平铺纹理", value=False)
 
-        composite_btn = gr.Button("合成图像")
-        composite_btn.click(
-            fn=apply_composite,
-            inputs=[texture_image, background_image, mask_image, tile_texture],
-            outputs=output_image3,
-        )
+    #     composite_btn = gr.Button("合成图像")
+    #     composite_btn.click(
+    #         fn=apply_composite,
+    #         inputs=[texture_image, background_image, mask_image, tile_texture],
+    #         outputs=output_image3,
+    #     )
 
     with gr.Tab("组合效果"):
         # 共享参数区域
         gr.Markdown("### 共享参数")
         with gr.Row():
-            texture_image = gr.Image(label="纹理图")
+            with gr.Column():
+                texture_image = gr.Image(label="纹理图")
+                with gr.Row():
+                    use_solid_color = gr.Checkbox(label="使用纯色", value=False)
+                    solid_color = gr.ColorPicker(label="选择颜色", value="#808080")
             background_image = gr.Image(label="背景图")
             mask_image = gr.Image(label="遮罩图")
 
@@ -371,14 +376,14 @@ with gr.Blocks() as demo:
                 gr.Markdown("#### 参数组 A")
                 with gr.Row():
                     strength_a = gr.Slider(
-                        minimum=0, maximum=100, value=20, step=1, label="深度置换强度"
+                        minimum=0, maximum=100, value=60, step=1, label="深度置换强度"
                     )
                 with gr.Row():
                     blur_radius_a = gr.Slider(
                         minimum=0, maximum=20, value=5, step=1, label="深度图模糊值"
                     )
                     lighting_strength_a = gr.Slider(
-                        minimum=0, maximum=1, value=0.5, step=0.1, label="光照强度"
+                        minimum=0, maximum=1, value=0.1, step=0.1, label="光照强度"
                     )
                 with gr.Row():
                     black_point_a = gr.Slider(
@@ -388,7 +393,7 @@ with gr.Blocks() as demo:
                         minimum=0, maximum=100, value=100, step=1, label="白场值"
                     )
                     gamma_a = gr.Slider(
-                        minimum=0.1, maximum=5, value=1.0, step=0.1, label="伽马值"
+                        minimum=0.1, maximum=2, value=1.0, step=0.1, label="伽马值"
                     )
                     contrast_a = gr.Slider(
                         minimum=0.1, maximum=5, value=1.0, step=0.1, label="对比度"
@@ -398,7 +403,11 @@ with gr.Blocks() as demo:
                     )
                 with gr.Row():
                     detail_strength_a = gr.Slider(
-                        minimum=0, maximum=1, value=0.5, step=0.1, label="细节保留强度"
+                        minimum=0,
+                        maximum=1,
+                        value=0.05,
+                        step=0.05,
+                        label="细节保留强度",
                     )
                 output_image_a = gr.Image(label="结果 A")
 
@@ -407,14 +416,14 @@ with gr.Blocks() as demo:
                 gr.Markdown("#### 参数组 B")
                 with gr.Row():
                     strength_b = gr.Slider(
-                        minimum=0, maximum=100, value=20, step=1, label="深度置换强度"
+                        minimum=0, maximum=100, value=60, step=1, label="深度置换强度"
                     )
                 with gr.Row():
                     blur_radius_b = gr.Slider(
                         minimum=0, maximum=20, value=5, step=1, label="深度图模糊值"
                     )
                     lighting_strength_b = gr.Slider(
-                        minimum=0, maximum=1, value=0.5, step=0.1, label="光照强度"
+                        minimum=0, maximum=1, value=0.1, step=0.1, label="光照强度"
                     )
                 with gr.Row():
                     black_point_b = gr.Slider(
@@ -424,7 +433,7 @@ with gr.Blocks() as demo:
                         minimum=0, maximum=100, value=100, step=1, label="白场值"
                     )
                     gamma_b = gr.Slider(
-                        minimum=0.1, maximum=5, value=1.0, step=0.1, label="伽马值"
+                        minimum=0.1, maximum=2, value=1.0, step=0.1, label="伽马值"
                     )
                     contrast_b = gr.Slider(
                         minimum=0.1, maximum=5, value=1.0, step=0.1, label="对比度"
@@ -434,12 +443,16 @@ with gr.Blocks() as demo:
                     )
                 with gr.Row():
                     detail_strength_b = gr.Slider(
-                        minimum=0, maximum=1, value=0.5, step=0.1, label="细节保留强度"
+                        minimum=0,
+                        maximum=1,
+                        value=0.05,
+                        step=0.05,
+                        label="细节保留强度",
                     )
                 output_image_b = gr.Image(label="结果 B")
 
         with gr.Row():
-            # 复制��数按钮
+            # 复制数按钮
             copy_a_to_b = gr.Button("复制 A 到 B")
             copy_b_to_a = gr.Button("复制 B 到 A")
             # 生成结果按钮
@@ -455,6 +468,8 @@ with gr.Blocks() as demo:
         # 定义生成对比结果函数
         def generate_comparison(
             texture,
+            use_solid_color,
+            solid_color,
             background,
             mask,
             texture_scale,
@@ -478,6 +493,11 @@ with gr.Blocks() as demo:
             lightness_b,
             detail_strength_b,
         ):
+            # 如果使用纯色，创建纯色图像作为纹理
+            if use_solid_color:
+                with WandImage(width=100, height=100, background=solid_color) as solid:
+                    texture = np.array(solid)
+
             # 生成A结果
             result_a = apply_combined_effects(
                 texture,
@@ -495,7 +515,7 @@ with gr.Blocks() as demo:
                 lightness_a,
                 detail_strength_a,
             )
-            
+
             # 生成B结果
             result_b = apply_combined_effects(
                 texture,
@@ -513,7 +533,7 @@ with gr.Blocks() as demo:
                 lightness_b,
                 detail_strength_b,
             )
-            
+
             return result_a, result_b
 
         # 设置按钮点击事件
@@ -573,6 +593,8 @@ with gr.Blocks() as demo:
             fn=generate_comparison,
             inputs=[
                 texture_image,
+                use_solid_color,
+                solid_color,
                 background_image,
                 mask_image,
                 texture_scale,
@@ -602,4 +624,8 @@ with gr.Blocks() as demo:
 
 # 启动应用
 if __name__ == "__main__":
-    demo.launch()
+    demo.launch(
+        share=True,
+        server_name="0.0.0.0",
+        server_port=6001,
+    )
